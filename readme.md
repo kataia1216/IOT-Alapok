@@ -1,6 +1,7 @@
 # Arduino alapú szónikus radar
 A projekt céla, hogy egy mikrokontrollerrel vezérelt önműködő rendszert hozzunk létre, amiben valamilyen bemenet változás hatására automatikus beavatkozás történjen.
-A mi esetünkben egy ultrahangos távolságérzékelő figyeli 180°-ban a területet, s ha egy megadott távolságon belül tereptárgyat érzékel, akkor hangjelzést ad és kiírást tesz a kijelzőre; ezzel értesítve a tulajdonost.
+
+A mi megvalósításunkban egy ultrahangos távolságérzékelő figyeli 180°-ban a területet, s ha egy megadott távolságon belül tereptárgyat érzékel, akkor hangjelzést ad és kiírást tesz a kijelzőre; ezzel értesítve a tulajdonost.
 
 [<img src="pics/project.png" width="350" style="display: block; margin: auto; filter: drop-shadow(5px 5px 5px #999); border-radius: 5px;" />](pics/project.png)
 
@@ -15,7 +16,7 @@ A mi esetünkben egy ultrahangos távolságérzékelő figyeli 180°-ban a terü
     - [Szimulációs környezet](#szimulációs-környezet)
     - [Fizikai eszközök](#fizikai-eszközök)
       - [Áramellátás](#áramellátás)
-      - [I^2^C LCD (kijelző)](#i2c-lcd-kijelző)
+      - [I2C LCD (kijelző)](#i2c-lcd-kijelző)
       - [Micro Servo (SG90 / MG996)](#micro-servo-sg90--mg996)
       - [Ultrasonic Sensor (HC-SR04)](#ultrasonic-sensor-hc-sr04)
       - [Active buzzer](#active-buzzer)
@@ -24,6 +25,8 @@ A mi esetünkben egy ultrahangos távolságérzékelő figyeli 180°-ban a terü
       - [A kód](#a-kód)
       - [A működés rövid leírása](#a-működés-rövid-leírása)
       - [A működés folyamatábrája](#a-működés-folyamatábrája)
+    - [Tesztelés](#tesztelés)
+  - [Zárszó](#zárszó)
 <!-- TOC -->
 
 ## Feladat
@@ -46,29 +49,30 @@ A projekt feladatnak mindenképpen tartalmaznia kell:
 ## Megvalósítás
 
 ### Szimulációs környezet
-A projekt megvalósításához felhasználtunk a [WOKWI szimulációs oldal](https://wokwi.com) inygenes felületét, ahol különböző mikrokontrollert és egyéb, hozzá kapcsolható eszközt, programkönyvtárat egybe tudtunk rendezni még azelőtt, mielőtt a fizikai eszközöket megvásároltuk volna.
+A projekt megvalósításához felhasználtunk a [WOKWI szimulációs oldal](https://wokwi.com) ingyenes felületét, ahol különböző mikrokontrollereket és egyéb, hozzájuk kapcsolható eszközöket, programkönyvtáraket egybe tudtunk rendezni még azelőtt, mielőtt a fizikai eszközöket megvásároltuk volna.
 Ennek előnye, hogy nagyon sok mindent le tudtunk tesztelni előre, s így ki tudtuk választani a projekt megvalósításához szükséges eszközöket.
-A szimulációt az alábbi oldalon lehet elérni: [link](https://wokwi.com/projects/449230802610289665)
+A szimulációt az alábbi oldalon lehet elérni: [link](https://wokwi.com/projects/449700746274259969)
 
 ### Fizikai eszközök
 A projekt kivitelezéséhez a következő eszközök kerültek beszerzésre:
- - [x] [Arduino Uno R3](pics/arduino.png)
- - [x] [Potenciométer (10k)](pics/potmeter.png)
- - [x] [Micro Servo (SG90)](pics/servo.png)
- - [x] [I^2^C LCD (16x2)](pics/lcd.png)
- - [x] [Ultrasonic Sensor (HC-SR04)](pics/sensor.png)
- - [x] [Active buzzer](pics/buzzer.png)
- - [x] [LED (piros)](pics/led.png)
- - [x] [Ellenállás (220-330 Ohm)](pics/ellenallas.png)
- - [x] [Breadboard](pics/breadboard.png)
- - [x] [Kábelezés](pics/cords.png)
+ - [x] [Arduino Uno R3](pics/arduino.png) | 1db
+ - [x] [Potenciométer (10k)](pics/potmeter.png) | 1db
+ - [x] [Micro Servo (SG90)](pics/servo.png) | 1db
+ - [x] [I2C LCD (16x2)](pics/lcd.png) | 1db
+ - [x] [Ultrasonic Sensor (HC-SR04)](pics/sensor.png) | 1db
+ - [x] [Active buzzer](pics/buzzer.png) | 1db
+ - [x] [LED (piros)](pics/led.png) | 1db
+ - [x] [Ellenállás (220-330 Ohm)](pics/ellenallas.png) | 1db
+ - [x] [Breadboard](pics/breadboard.png) | 1db
+ - [x] [Kábelezés](pics/cords.png) | 1 köteg
+- Komplett szett, ami minden szükséges alkotóelemet tartalmazta: [hestore.hu: RL-SET-SUPS](https://www.hestore.hu/prod_10045701.html)
 
 #### Áramellátás
 Központi áram elosztó elem a Breadbord, ahová az Arduino kimeneti lábait kötöttük, s minden csatlakoztatott eszköz innen vételezheti a működéséhez szükséges tápellátást.
 - Arduino **5V** kimenet: **+** (breadbord pozitív sín)
 - Arduino **GND** kimenet: **-** (breadbord negatív sín)
 
-#### I^2^C LCD (kijelző)
+#### I2C LCD (kijelző)
 - **VCC**: Breadboard +5V (pozitív)
 - **GND**: Breadboard GND (negatív)
 - **SDA**: Arduino SDA (A4)
@@ -103,115 +107,158 @@ A projekt szoftveres kivitelezéséhez az Arduino IDE szolgált, ami ingyenesen 
 A futtatható kód, ami a működést biztosítja:
 
 ```c
+/*
+ * Arduino Radar Projekt - V2.4
+ * - Ultrahangos erzekeles fix tavolsagon belul
+ * - Szonar mozgatas ciklikusan szervo motor segitsegevel
+ * - Aktualis ertekek megjelenitese kijelzon
+ * - Opcionalis soros porti visszairas
+ * - Tereptargy erzekeles eseten riasztas (hang, szoveg)
+ */
+
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Servo.h>
 
-LiquidCrystal_I2C lcd(0x3F, 16, 2);
-Servo radarServo;
+// Wokwi szimulacio eseten 0x27,
+// egyebkent altalaban 0x3C
+LiquidCrystal_I2C Lcd(0x27, 16, 2); 
+Servo RadarServo;
 
-const int trigPin = 2;
-const int echoPin = 3;
-const int ledPin = 6;
-const int buzzerPin = 7;
-const int servoPin = 8;
+// Pin kiosztasok
+const int TrigPin = 2;
+const int EchoPin = 3;
+const int LedPin = 6;
+const int BuzzerPin = 7;
+const int ServoPin = 8;
+const int PotPin = A1; 
 
-const int potPin = A1;  
+// Erzekelesi tavolsag (cm)
+int RiasztasiHatarek = 50; 
 
-float ido, tav;
+// Opcionalis soros visszairas
+// true  = Adatok kuldese a szamitogep fele (lassabb)
+// false = Nincs adatkuldes (gyorsabb mukodes)
+bool SorosKimenetKell = true; 
 
-int fok = 0;
-int lepes = 2;
+// Valtozok
+float Tavolsag = 0;
+int AktualisSzog = 0;
+int LepesIrany = 2;
+byte PasztazasKesleltetes; 
 
 void setup() {
+  // A soros portot mindig elinditjuk, hogy hiba eseten elerheto legyen,
+  // de irni csak akkor fogunk ra, ha a fenti valtozo engedi.
   Serial.begin(9600);
 
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  pinMode(ledPin, OUTPUT);
-  pinMode(buzzerPin, OUTPUT);
+  pinMode(TrigPin, OUTPUT);
+  pinMode(EchoPin, INPUT);
+  pinMode(LedPin, OUTPUT);
+  pinMode(BuzzerPin, OUTPUT);
 
-  radarServo.attach(servoPin);
+  RadarServo.attach(ServoPin);
 
-  lcd.init();
-  lcd.backlight();
-  lcd.clear();
+  Lcd.init();
+  Lcd.backlight();
+  Lcd.clear();
 
-  lcd.setCursor(0, 0);
-  lcd.print("Radar indul...");
-  delay(1000);
+  Lcd.setCursor(0, 0);
+  Lcd.print("Arduino radar");
+  Lcd.setCursor(0, 1);
+  Lcd.print("Betoltes...");
+  delay(2000);
+  Lcd.clear();
 }
 
-float measureDistance() {
-  digitalWrite(trigPin, LOW);
+float TavolsagMeres() {
+  digitalWrite(TrigPin, LOW);
   delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
+  digitalWrite(TrigPin, HIGH);
   delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
+  digitalWrite(TrigPin, LOW);
 
-  ido = pulseIn(echoPin, HIGH);
-  tav = (ido * 0.0343) / 2;
+  long Idotartam = pulseIn(EchoPin, HIGH, 30000); 
 
-  //Serial.print("Tavolsag: ");
-  //Serial.println(tav);
-
-  return tav;
+  if (Idotartam == 0) return 0; 
+  return (Idotartam * 0.0343) / 2;
 }
 
 void loop() {
+  
+  // --- SEBESSEG ---
+  // Minel nagyobb a potmeter erteke, annal lassabb lesz a mozgatas
+  int PotErtek = analogRead(PotPin);
+  PasztazasKesleltetes = map(PotErtek, 0, 1023, 120, 20);
 
-  // --- POTMÉTER BEOLVASÁSA ---
-  int potValue = analogRead(potPin);
+  // --- MOZGATAS ES MERES ---
+  RadarServo.write(AktualisSzog);
+  delay(30); 
+  Tavolsag = TavolsagMeres();
 
-  // A pásztázás sebessége (10–120 ms között)
-  int sweepDelay = map(potValue, 0, 1023, 10, 120);
-
-  radarServo.write(fok);
-
-  tav = measureDistance();
-
-  Serial.print("Szog: ");
-  Serial.print(fok);
-  Serial.print("  Tav: ");
-  Serial.print(tav);
-  Serial.print(" cm  Speed: ");
-  Serial.println(sweepDelay);
-
-  lcd.clear();
-
-  // ********** KÉRT KIÍRÁS: SZÖG + SEBESSÉG EGY SORBAN **********
-  lcd.setCursor(0, 0);
-  lcd.print("Szog:");
-  lcd.print(fok);
-  lcd.print(" SPD:");
-  lcd.print(sweepDelay);
-  // **************************************************************
-
-  lcd.setCursor(0, 1);
-
-  if (tav <= 50 && tav > 0) {
-    digitalWrite(ledPin, HIGH);
-    digitalWrite(buzzerPin, HIGH);
-    lcd.print("Behatolas!");
-  } else {
-    digitalWrite(ledPin, LOW);
-    digitalWrite(buzzerPin, LOW);
-    lcd.print("Tav: ");
-    lcd.print(tav, 1);
-    lcd.print(" cm");
+  // --- SOROS MONITOR ---
+  // Csak akkor fut le, ha korabban engedelyezve volt
+  if (SorosKimenetKell) {
+    Serial.print("Fok: ");
+    Serial.print(AktualisSzog);
+    Serial.print(" | Kesleltetes: ");
+    Serial.print(PasztazasKesleltetes);
+    Serial.print("ms | Tav: ");
+    Serial.print(Tavolsag);
+    
+    if (Tavolsag <= RiasztasiHatarek && Tavolsag > 0) {
+       Serial.println("cm  !!! RIASZTAS !!!");
+    } else {
+       Serial.println("cm");
+    }
   }
 
-  // Szervó irányváltás
-  fok += lepes;
-  if (fok >= 180 || fok <= 0) lepes = -lepes;
+  // --- LCD KIJELZES ---
+  Lcd.setCursor(0, 0);
+  Lcd.print("Fok:");
+  Lcd.print(AktualisSzog);
+  Lcd.print(" "); 
+  if(AktualisSzog < 100) Lcd.print(" "); 
+  if(AktualisSzog < 10) Lcd.print(" ");
 
-  // *** EZT SZABÁLYOZZA A POTMÉTER ***
-  delay(sweepDelay);
+  Lcd.setCursor(8, 0); 
+  Lcd.print("Kesl:");
+  Lcd.print(PasztazasKesleltetes);
+  Lcd.print(" "); 
+
+  Lcd.setCursor(0, 1);
+
+  if (Tavolsag <= RiasztasiHatarek && Tavolsag > 0) {
+    digitalWrite(LedPin, HIGH);
+    digitalWrite(BuzzerPin, HIGH);
+    Lcd.print("! BEHATOLAS !   ");
+  } else {
+    digitalWrite(LedPin, LOW);
+    digitalWrite(BuzzerPin, LOW);
+    Lcd.print("Erz.tav: ");
+    Lcd.print(Tavolsag, 1);
+    Lcd.print("cm   ");
+  }
+
+  // Szervo ciklikus leptetese
+  AktualisSzog += LepesIrany;
+  if (AktualisSzog >= 180 || AktualisSzog <= 0) {
+    LepesIrany = -LepesIrany;
+  }
+
+  delay(PasztazasKesleltetes);
 }
 ```
 
 #### A működés rövid leírása
-A szervo motor 180°-ban mozgatja oda-vissza az ultrahangos távolság érzékelőt, ami folyamatosan "figyel". Ha hatótávolságon belül valamilyen tereptárgyat érzékel, akkor ez beindítja a riasztást. Ekkor a buzzer megszólal, s a kijelzőre kiírja a számított távolságot.
+Ez az Arduino-alapú radarrendszer környezetének folyamatos pásztázását végzi egy szervómotorra szerelt ultrahangos távolságérzékelő segítségével, amely ciklikusan, 0 és 180 fok között mozog oda-vissza. A rendszer működés közben valós időben jeleníti meg az LCD kijelző felső sorában az aktuális pásztázási szöget és a mozgás sebességét (melyet egy potméterrel szabályozhatunk: feltekerve csökken a késleltetés, így gyorsul a radar), az alsó sorban pedig az érzékelt tárgy távolságát mutatja. A biztonsági logika folyamatosan figyeli a mért adatokat: amennyiben a beállított 50 cm-es határértéken belül akadályt észlel, a készülék azonnal riasztási üzemmódba vált, melyet a LED felvillanása, a hangjelző (buzzer) sípolása és a kijelzőn megjelenő „! BEHATOLAS !” felirat jelez; nyugalmi állapotban pedig a pontos távolságot írja ki, miközben opcionálisan a számítógép felé is továbbítja az adatokat diagnosztikai célból.
 
 #### A működés folyamatábrája
 ![pics/radar-flow.png](pics/radar-flow.png)
+
+### Tesztelés
+![1. teszt video](test1.mp4)
+![2. teszt video](test2.mp4)
+
+## Zárszó
+Az ismeretlen eszközök, az újnak ható programozási nyelv és logika, a kezdeti technikai útvesztők leküzdése igazi elszántságot követelt, de a befektetett munka megtérült. A folyamat során rengeteget tanultunk, és a működő rendszer látványa nemcsak a siker édes ízét hozta el, hanem kaput nyitott a jövőbeni, szerteágazó és még komolyabb fejlesztések lehetősége előtt is.
